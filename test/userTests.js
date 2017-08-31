@@ -67,21 +67,6 @@ describe("User tests", function () {
             });
     });
 
-    it("should get the first user's data", function (done) {
-        request(server)
-            .get("/user/list")
-            .expect(200)
-            .end(function(err, res) {
-                request(server)
-                    .get("/user/info/"+res.body[0]._id)
-                    .expect(200)
-                    .end(function(err, res) {
-                        assert.equal(res.body.email, "aflaesch@gmail.com");
-                        done();
-                    })
-            });
-    });
-
     it("should update the first user's data", function (done) {
         request(server)
             .get("/user/list")
