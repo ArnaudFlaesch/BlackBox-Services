@@ -1,0 +1,33 @@
+sudo: required
+language: node_js
+node_js:
+  - 7
+  - 6
+  - 5
+  - 4
+
+env:
+  - CXX=g++-4.8
+
+before_install:
+  - npm cache clean --force
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+  - sudo apt-get update -q
+  - sudo apt-get install build-essential gcc-4.8 python make g++-4.8 -y
+  - npm install istanbul mocha coveralls codacy-coverage node-pre-gyp node-gyp -g
+
+before_script:
+  - sleep 15
+
+script: istanbul cover _mocha --report lcovonly
+
+after_success:
+  - cat ./coverage/lcov.info | coveralls
+  - cat ./coverage/lcov.info | codacy-coverage
+
+services:
+  - mongodb
+
+notifications:
+   email:
+     - arnaudflaesch.dev@gmail.com

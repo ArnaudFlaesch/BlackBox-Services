@@ -1,0 +1,37 @@
+{
+  "name": "BlackBox-Services",
+  "version": "1.0.0",
+  "author": "Arnaud Flaesch",
+  "description": "Partie Back-End d'une plateforme Cloud de partage de fichiers.",
+  "homepage": "http://arnaudflaesch.github.io/",
+  "private": true,
+  "engines": {
+    "node": "7.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "mocha --recursive test"
+  },
+  "dependencies": {
+    "bcrypt": "1.0.2",
+    "body-parser": "^1.13.3",
+    "cors": "^2.8.3",
+    "express": "4.15.3",
+    "method-override": "^2.3.8",
+    "mongoose": "4.10.6",
+    "socket.io": "2.0.3"
+  },
+  "devDependencies": {
+    "assert": "^1.4.1",
+    "gulp": "3.9.1",
+    "gulp-eslint": "4.0.0",
+    "gulp-jshint": "^2.0.4",
+    "gulp-nodemon": "2.2.1",
+    "gulp-refresh": "^1.1.0",
+    "jshint": "^2.9.4",
+    "mocha": "^3.2.0",
+    "run-sequence": "^1.2.2",
+    "should": "^11.2.1",
+    "supertest": "^3.0.0"
+  }
+}

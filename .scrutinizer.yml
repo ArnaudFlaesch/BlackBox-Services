@@ -1,0 +1,23 @@
+build:
+    dependencies:
+        before:
+            - npm install -g mocha istanbul
+    environment:
+            node: '6.9'
+            mongodb: '3.2'
+
+    tests:
+        override:
+            - jshint-run
+            -
+                command : 'istanbul cover _mocha --report clover'
+                coverage:
+                    file: 'coverage/clover.xml'
+                    format: 'clover'
+
+checks:
+    javascript: true
+
+filter:
+    excluded_paths:
+        - node_modules/
