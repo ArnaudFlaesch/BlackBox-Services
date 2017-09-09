@@ -8,7 +8,7 @@ const app = require("express")(),
     mongoose = require("mongoose"),
     router = express.Router(),
     server = require("http").Server(app),
-    fileRouter = require("./routes/fileRouter"),
+    elementRouter = require("./routes/elementRouter"),
     userRouter = require("./routes/userRouter");
 
 const port = process.env.PORT || 3000;
@@ -30,7 +30,7 @@ router.use(function (req, res, next) {
 
 app.use("/", router);
 app.use("/user", userRouter);
-app.use("/file", fileRouter);
+app.use("/element", elementRouter);
 
 app.use(function (req, res, next) {
     var err = new Error("Not Found");

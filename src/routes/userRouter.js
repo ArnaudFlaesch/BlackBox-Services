@@ -2,7 +2,9 @@
 
 const bcrypt = require("bcrypt"),
     express = require("express"),
-    User = require("../model/user");
+    Element = require("../model/element"),
+    User = require("../model/user"),
+    shellScripts = require("../shellScripts");
 
 const userRouter = express.Router();
 
@@ -66,6 +68,9 @@ userRouter.post("/register", function (req, res, next) {
                                 next(err);
                             }
                             else {
+                                if (shellScripts.createFolder("/blackbox", user._id)) {
+                                    Element.create({path: "/blackbox", name : user._id, owner : user._id, deleted: false });
+                                };
                                 res.send(user);
                             }
                         });

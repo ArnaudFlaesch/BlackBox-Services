@@ -22,7 +22,7 @@ gulp.task("lint", function () {
 
 gulp.task("livereload", function () {
     nodemon({
-        script: sourceDir/+"server.js",
+        script: sourceDir + "/server.js",
         stdout: true
     });
 });

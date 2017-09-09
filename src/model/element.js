@@ -2,12 +2,10 @@
 
 const mongoose = require("mongoose");
 
-const User = require("./user");
-
 const Schema = mongoose.Schema;
 
-const FileSchema = new Schema({
-    "filename": String,
+const ElementSchema = new Schema({
+    "name": String,
     "path": String,
     "owner": String,
     "deleted": Boolean,
@@ -15,4 +13,4 @@ const FileSchema = new Schema({
     "sharedWithUsers": [String]
 });
 
-module.exports = mongoose.model("File", FileSchema, "file");
+module.exports = mongoose.model("Element", ElementSchema, "element");
