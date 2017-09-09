@@ -1,17 +1,30 @@
 "use strict";
 
 const express = require("express"),
-    multer = require("multer"),
-    File = require("../model/file");
+    File = require("../model/file"),
+    multer = require("multer");
 
-const fileRouter = express.Router(),
-    upload = multer({ dest: "uploads/" }),
-    uploadConfig = upload.fields( {name: "documents", maxCount: 8 });
+const fileRouter = express.Router();
 
-fileRouter.post("/upload", uploadConfig, function (req, res, next) {
-    console.log(req.body);
-    console.log(req.files);
-    res.status(204).end()
+var storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, "/uploads")
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname)
+    }
+})
+
+var upload = multer({ storage: storage }).array("documents");
+
+fileRouter.post("/upload", function (req, res, next) {
+    console.log(req.query.path);
+    upload(req, res, function (err) {
+        if (err) {
+            return (err);
+        }
+        res.status(204).end();
+    });
 })
 
 
