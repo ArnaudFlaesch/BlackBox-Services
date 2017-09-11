@@ -3,6 +3,7 @@
 const bcrypt = require("bcrypt"),
     express = require("express"),
     Element = require("../model/element"),
+    exec = require("child_process").exec,
     User = require("../model/user"),
     shellScripts = require("../shellScripts");
 
@@ -68,10 +69,15 @@ userRouter.post("/register", function (req, res, next) {
                                 next(err);
                             }
                             else {
-                                if (shellScripts.createFolder("/blackbox", user._id)) {
-                                    Element.create({path: "/blackbox", name : user._id, owner : user._id, deleted: false });
-                                };
-                                res.send(user);
+                                exec("shx mkdir " + "./blackbox" + "/" + user._id, function (error, stdout, stderr) {
+                                    if (error !== null) {
+                                        console.log('exec error: ' + error);
+                                    }
+                                    else {
+                                        Element.create({path: "./blackbox", name : user._id, owner : user._id, deleted: false });
+                                        res.send(user);
+                                    }
+                                });
                             }
                         });
                     })
