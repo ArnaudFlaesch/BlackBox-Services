@@ -74,7 +74,7 @@ describe("User tests", function () {
             .end(function(err, res) {
                 res.body[0].email = "arnaudflaesch@gmail.com";
                 request(server)
-                    .put("/user/update")
+                    .post("/user/update")
                     .send(res.body[0])
                     .expect(200)
                     .end(function(err, res) {
@@ -90,7 +90,7 @@ describe("User tests", function () {
             .expect(200)
             .end(function(err, res) {
                 request(server)
-                    .delete("/user/delete/"+res.body[1]._id)
+                    .delete("/user/delete?userId="+res.body[1]._id + "&password=root")
                     .expect(200)
                     .end(function(err, res) {
                         assert.equal(res.body.message, "User successfully deleted.");
@@ -98,7 +98,7 @@ describe("User tests", function () {
                             .get("/user/list")
                             .expect(200)
                             .end(function(err, res) {
-                                assert.equal(res.body.length, 2);
+                                assert.equal(res.body.length, 1);
                                 done();
                             });
                     })

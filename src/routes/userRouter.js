@@ -4,8 +4,7 @@ const bcrypt = require("bcrypt"),
     express = require("express"),
     Element = require("../model/element"),
     exec = require("child_process").exec,
-    User = require("../model/user"),
-    shellScripts = require("../shellScripts");
+    User = require("../model/user");
 
 const userRouter = express.Router();
 
@@ -89,11 +88,13 @@ userRouter.post("/register", function (req, res, next) {
         });
 });
 
-userRouter.put("/update", function (req, res, next) {
+userRouter.post("/update", function (req, res, next) {
     User.findById(req.body._id, function (err, userFromDatabase) {
         if (err) {
             next(err);
         }
+        userFromDatabase.firstname = req.body.firstname;
+        userFromDatabase.name = req.body.name;
         userFromDatabase.email = req.body.email;
         userFromDatabase.save(function (err) {
             if (err) {
@@ -104,12 +105,50 @@ userRouter.put("/update", function (req, res, next) {
     });
 });
 
-userRouter.delete("/delete/:userid", function (req, res, next) {
-    User.remove({"id": req.params.userid}, function (err, user) {
+
+userRouter.post("/updateUserPassword", function (req, res, next) {
+    User.findById(req.body.userId, function (err, userFromDatabase) {
         if (err) {
             next(err);
         }
-        res.json({"message": "User successfully deleted."});
+        bcrypt.compare(req.body.oldPassword, userFromDatabase.password, function(err, result) {
+            if (result) {
+                bcrypt.hash(req.body.newPassword, 10, function(err, hash) {
+                    req.body.newPassword = hash;
+                    userFromDatabase.password = req.body.newPassword;
+                    userFromDatabase.save(function (err) {
+                        if (err) {
+                            next(err);
+                        }
+                        res.json(userFromDatabase);
+                    });
+                });
+            }
+            else {
+                next(new Error("Mot de passe invalide."));
+            }
+        });
+    });
+});
+
+userRouter.delete("/delete", function (req, res, next) {
+    User.findById(req.query.userId, function (err, userFromDatabase) {
+        if (err) {
+            next(err);
+        }
+        bcrypt.compare(req.query.password, userFromDatabase.password, function(err, result) {
+            if (result) {
+                User.remove({"_id": req.query.userId}, function (err, user) {
+                    if (err) {
+                        next(err);
+                    }
+                    res.json({"message": "User successfully deleted."});
+                });
+            }
+            else {
+                next(new Error("Mot de passe invalide."));
+            }
+        });
     });
 });
 

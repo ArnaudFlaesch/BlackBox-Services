@@ -3,7 +3,6 @@
 const express = require("express"),
     Element = require("../model/element"),
     exec = require("child_process").exec,
-    shellScripts = require("../shellScripts"),
     multer = require("multer");
 
 const elementRouter = express.Router();
@@ -19,21 +18,44 @@ var storage = multer.diskStorage({
 
 var upload = multer({ storage: storage }).array("documents");
 
-elementRouter.post("/newFolder", function(req, res, next) {
-    var userId = req.query.userId;
-    var elementName = req.query.elementName;
-    var path = "./blackbox" + req.query.path;
-
+elementRouter.post("/newFile", function(req, res, next) {
+    var userId = req.body.userId;
+    var elementName = req.body.elementName;
+    var path = "./blackbox" + req.body.path;
     Element.findOne( {"path" : path}, function (err, element) {
         if (!err) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                    exec("shx mkdir " + path + "/" + elementName, function (error, stdout, stderr) {
+                    path += "/" + req.body.folderTo;
+                    exec("shx touch " + path + "/" +  elementName, function (error, stdout, stderr) {
                         if (error !== null) {
                             console.log('exec error: ' + error);
                         }
                         else {
-                            Element.create({path: path + "/" + elementName, name: userId, owner: userId, deleted: false});
+                            Element.create({path: path, name: elementName, owner: userId, deleted: false});
+                        }
+                    });
+                }
+            }
+        }
+    });
+});
+
+elementRouter.post("/newFolder", function(req, res, next) {
+    var userId = req.body.userId;
+    var elementName = req.body.elementName;
+    var path = "./blackbox" + req.body.path;
+    Element.findOne( {"path" : path}, function (err, element) {
+        if (!err) {
+            if (element !== null) {
+                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+                    path += "/" + req.body.folderTo;
+                    exec("shx mkdir " + path + "/" +  elementName, function (error, stdout, stderr) {
+                        if (error !== null) {
+                            console.log('exec error: ' + error);
+                        }
+                        else {
+                            Element.create({path: path, name: elementName, owner: userId, deleted: false});
                         }
                     });
                 }
