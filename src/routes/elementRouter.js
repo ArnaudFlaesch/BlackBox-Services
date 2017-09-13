@@ -25,11 +25,11 @@ elementRouter.post("/newFile", function(req, res, next) {
     Element.findOne( {"path" : path}, function (err, element) {
         if (!err) {
             if (element !== null) {
-                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                    path += "/" + req.body.folderTo;
+                if (path === "./blackbox" || (element.owner === userId || element.sharedWithUsers.indexOf(userId)) > -1) {
+                    path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
                     exec("shx touch " + path + "/" +  elementName, function (error, stdout, stderr) {
                         if (error !== null) {
-                            console.log('exec error: ' + error);
+                            next(error);
                         }
                         else {
                             Element.create({path: path, name: elementName, owner: userId, deleted: false});
@@ -48,11 +48,11 @@ elementRouter.post("/newFolder", function(req, res, next) {
     Element.findOne( {"path" : path}, function (err, element) {
         if (!err) {
             if (element !== null) {
-                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                    path += "/" + req.body.folderTo;
+                if (path === "./blackbox" || (element.owner === userId || element.sharedWithUsers.indexOf(userId)) > -1) {
+                    path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
                     exec("shx mkdir " + path + "/" +  elementName, function (error, stdout, stderr) {
                         if (error !== null) {
-                            console.log('exec error: ' + error);
+                            next(error);
                         }
                         else {
                             Element.create({path: path, name: elementName, owner: userId, deleted: false});
@@ -73,13 +73,32 @@ elementRouter.get("/directory", function (req, res, next) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
                     exec("shx ls " + path + "/" + elementName, function (error, stdout, stderr) {
-                        res.send(stdout.split("\n").filter(Boolean));
                         if (error !== null) {
-                            console.log('exec error: ' + error);
+                            next(error);
                         }
+                        res.send(stdout.split("\n").filter(Boolean));
                     });
                 }
             }
+        }
+        else {
+            next(err);
+        }
+    });
+});
+
+elementRouter.get("/sharedFolders", function (req, res, next) {
+    var userId = req.query.userId;
+    Element.find( {$and: [ {$or:[ {"owner" : userId }, {"sharedWithUsers" : userId}]}, {"name": {$ne: userId}} ]}, function (err, result) {
+        if (!err) {
+            let folderList = [];
+            result.map(function(folder) {
+                folderList.push(folder.name);
+            });
+            res.json(folderList);
+        }
+        else {
+            next(err);
         }
     });
 });

@@ -143,7 +143,7 @@ userRouter.delete("/delete", function (req, res, next) {
                         if (err) {
                             next(err);
                         }
-                        exec("shx mkdir " + "./blackbox/" + req.query.userId, null);
+                        exec("shx rm -rf " + "./blackbox/" + req.query.userId, null);
                         res.json({"message": "User successfully deleted."});
                     });
                 });
