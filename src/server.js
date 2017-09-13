@@ -3,6 +3,7 @@
 const app = require("express")(),
     bodyParser = require("body-parser"),
     cors = require("cors"),
+    exec = require("child_process").exec,
     express = require("express"),
     methodOverride = require("method-override"),
     mongoose = require("mongoose"),
@@ -43,6 +44,7 @@ app.use(function (err, req, res, next) {
 });
 
 server.listen(port, function () {
+    exec("shx mkdir " + "./blackbox", null);
     console.log("Starting server on port " + port);
 });
 

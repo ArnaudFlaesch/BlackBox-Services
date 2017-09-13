@@ -138,11 +138,14 @@ userRouter.delete("/delete", function (req, res, next) {
         }
         bcrypt.compare(req.query.password, userFromDatabase.password, function(err, result) {
             if (result) {
-                User.remove({"_id": req.query.userId}, function (err, user) {
-                    if (err) {
-                        next(err);
-                    }
-                    res.json({"message": "User successfully deleted."});
+                Element.remove({"path" : "./blackbox/" + req.query.userId}, function(err, result) {
+                    User.remove({"_id": req.query.userId}, function (err, user) {
+                        if (err) {
+                            next(err);
+                        }
+                        exec("shx mkdir " + "./blackbox/" + req.query.userId, null);
+                        res.json({"message": "User successfully deleted."});
+                    });
                 });
             }
             else {

@@ -1,7 +1,7 @@
 const server = require("../src/server"),
     assert = require('assert'),
+    exec = require("child_process").exec,
     request = require("supertest"),
-    should = require('should'),
     User = require("../src/model/user");
 
 describe("server", function () {
@@ -18,6 +18,8 @@ describe("Server status and Message", function () {
     it("status response should be equal 200", function (done) {
         User.remove({}, function(err) {
             console.log("Collection removed");
+            exec("shx rm -rf " + "./blackbox");
+            exec("shx mkdir " + "./blackbox");
         });
 
         request(server)
