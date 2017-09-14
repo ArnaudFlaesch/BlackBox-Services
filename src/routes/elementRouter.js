@@ -68,28 +68,37 @@ elementRouter.get("/directory", function (req, res, next) {
     var userId = req.query.userId;
     var elementName = req.query.elementName;
     var path = "./blackbox" + req.query.path;
-    Element.findOne( {$and:[ {"name" : elementName }, {"path" : path} ]}, function (err, element) {
-        if (!err) {
-            if (element !== null) {
-                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                    exec("shx ls " + path + "/" + elementName, function (error, stdout, stderr) {
-                        if (error !== null) {
-                            next(error);
-                        }
-                        res.send(stdout.split("\n").filter(Boolean));
-                    });
+    if (req.query.path === "" && elementName === "") {
+        getSharedFolders(req, res, next);
+    }
+    else {
+        Element.findOne( {$and:[ {"name" : elementName }, {"path" : path} ]}, function (err, element) {
+            if (!err) {
+                if (element !== null) {
+                    if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+                        exec("shx ls " + path + "/" + elementName, function (error, stdout, stderr) {
+                            if (error !== null) {
+                                next(error);
+                            }
+                            res.send(stdout.split("\n").filter(Boolean));
+                        });
+                    }
                 }
             }
-        }
-        else {
-            next(err);
-        }
-    });
+            else {
+                next(err);
+            }
+        });
+    }
 });
 
 elementRouter.get("/sharedFolders", function (req, res, next) {
+    getSharedFolders(req, res, next);
+});
+
+function getSharedFolders(req, res, next) {
     var userId = req.query.userId;
-    Element.find( {$and: [ {$or:[ {"owner" : userId }, {"sharedWithUsers" : userId}]}, {"name": {$ne: userId}} ]}, function (err, result) {
+    Element.find( {$and: [{$and: [ {$or:[ {"owner" : userId }, {"sharedWithUsers" : userId}]}, {"name": {$ne: userId}} ]}, {"path": "./blackbox"} ]}, function (err, result) {
         if (!err) {
             let folderList = [];
             result.map(function(folder) {
@@ -101,7 +110,7 @@ elementRouter.get("/sharedFolders", function (req, res, next) {
             next(err);
         }
     });
-});
+}
 
 elementRouter.get("/download", function(req, res, next) {
     var userId = req.query.userId;
