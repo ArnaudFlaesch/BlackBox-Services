@@ -100,7 +100,7 @@ function getSharedFolders(req, res, next) {
     var userId = req.query.userId;
     Element.find( {$and: [{$and: [ {$or:[ {"owner" : userId }, {"sharedWithUsers" : userId}]}, {"name": {$ne: userId}} ]}, {"path": "./blackbox"} ]}, function (err, result) {
         if (!err) {
-            let folderList = [];
+            var folderList = [];
             result.map(function(folder) {
                 folderList.push(folder.name);
             });

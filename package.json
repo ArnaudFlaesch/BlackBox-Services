@@ -20,7 +20,8 @@
     "express": "4.15.3",
     "method-override": "^2.3.8",
     "mongoose": "4.10.6",
-    "multer": "^1.3.0"
+    "multer": "^1.3.0",
+    "paypal-express-checkout": "^1.6.1"
   },
   "devDependencies": {
     "assert": "^1.4.1",

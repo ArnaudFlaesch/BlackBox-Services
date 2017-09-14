@@ -18,7 +18,7 @@ describe("Server status and Message", function () {
     it("status response should be equal 200", function (done) {
         User.remove({}, function(err) {
             console.log("Collection removed");
-            exec("shx rm -rf " + "./blackbox");
+            exec("shx rmdir -rf " + "./blackbox");
             exec("shx mkdir " + "./blackbox");
         });
 

@@ -8,7 +8,9 @@ const UserSchema = new Schema({
     "email": String,
     "password": String,
     "firstname": String,
-    "name": String
+    "name": String,
+    "isPremiumUser": Boolean,
+    "premiumDateOfExpiration": Date
 });
 
 module.exports = mongoose.model("User", UserSchema, "user");

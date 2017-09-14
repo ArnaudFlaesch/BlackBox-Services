@@ -105,7 +105,6 @@ userRouter.post("/update", function (req, res, next) {
     });
 });
 
-
 userRouter.post("/updateUserPassword", function (req, res, next) {
     User.findById(req.body.userId, function (err, userFromDatabase) {
         if (err) {
@@ -143,7 +142,7 @@ userRouter.delete("/delete", function (req, res, next) {
                         if (err) {
                             next(err);
                         }
-                        exec("shx rm -rf " + "./blackbox/" + req.query.userId, null);
+                        exec("shx rmdir -rf " + "./blackbox/" + req.query.userId, null);
                         res.json({"message": "User successfully deleted."});
                     });
                 });
