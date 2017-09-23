@@ -1,12 +1,13 @@
 "use strict";
 
 const bcrypt = require("bcrypt"),
-    express = require("express"),
     Element = require("../model/element"),
     exec = require("child_process").exec,
-    User = require("../model/user");
-
-const userRouter = express.Router();
+    express = require("express"),
+    log = require("winston"),
+    propertiesReader = require('properties-reader'),
+    User = require("../model/user"),
+    userRouter = express.Router();
 
 userRouter.use(function (req, res, next) {
     next();
@@ -34,17 +35,14 @@ userRouter.post("/login", function (req, res, next) {
     User.findOne({ "email": req.body.email}, function (err, user) {
         if (err) {
             next(err);
-        }
-        else {
+        } else {
             if (user === null) {
                 next(new Error("Aucun utilisateur n'existe avec cet email."));
-            }
-            else {
+            } else {
                 bcrypt.compare(req.body.password, user.password, function(err, result) {
                     if (result) {
                         res.json(user);
-                    }
-                    else {
+                    } else {
                         next(new Error("Mot de passe invalide."));
                     }
                 });
@@ -54,34 +52,30 @@ userRouter.post("/login", function (req, res, next) {
 });
 
 userRouter.post("/register", function (req, res, next) {
-    User.find({ "email": req.body.email},
+    User.find({"email": req.body.email},
         function (err, user){
             if (err) {
                 next(err);
-            }
-            else {
+            } else {
                 if (user.length === 0) {
                    bcrypt.hash(req.body.password, 10, function(err, hash) {
                         req.body.password = hash;
                         User.create(req.body, function (err, user) {
                             if (err) {
                                 next(err);
-                            }
-                            else {
+                            } else {
                                 exec("shx mkdir " + "./blackbox" + "/" + user._id, function (error, stdout, stderr) {
                                     if (error !== null) {
-                                        console.log('exec error: ' + error);
-                                    }
-                                    else {
-                                        Element.create({path: "./blackbox", name : user._id, owner : user._id, deleted: false });
+                                        log.error("exec error: " + error);
+                                    } else {
+                                        Element.create({"path": "./blackbox", "name": user._id, "owner": user._id, "deleted": false });
                                         res.send(user);
                                     }
                                 });
                             }
                         });
-                    })
-                }
-                else {
+                    });
+                } else {
                     next(new Error("L'email est déjà utilisé."));
                 }
             }
@@ -110,9 +104,9 @@ userRouter.post("/updateUserPassword", function (req, res, next) {
         if (err) {
             next(err);
         }
-        bcrypt.compare(req.body.oldPassword, userFromDatabase.password, function(err, result) {
+        bcrypt.compare(req.body.oldPassword, userFromDatabase.password, function (err, result) {
             if (result) {
-                bcrypt.hash(req.body.newPassword, 10, function(err, hash) {
+                bcrypt.hash(req.body.newPassword, 10, function (err, hash) {
                     req.body.newPassword = hash;
                     userFromDatabase.password = req.body.newPassword;
                     userFromDatabase.save(function (err) {
@@ -122,11 +116,22 @@ userRouter.post("/updateUserPassword", function (req, res, next) {
                         res.json(userFromDatabase);
                     });
                 });
-            }
-            else {
+            } else {
                 next(new Error("Mot de passe invalide."));
             }
         });
+    });
+});
+
+userRouter.get("/premium", function (req, res, next) {
+    const PaypalModule = require("paypal-express-checkout"),
+        properties = propertiesReader("./src/properties/paypalConfig.ini"),
+        paypal = PaypalModule.init(properties.get("main.paypal.username"), properties.get("main.paypal.password"), properties.get("main.paypal.signature"), "http://localhost:4200/home", "http://localhost:4200/home", true);
+    paypal.pay("20130001", 0.01, "Abonnement Premium Blackbox", "EUR", true, function (err, url) {
+        if (err) {
+            next(err);
+        }
+        res.redirect(url);
     });
 });
 
@@ -137,7 +142,7 @@ userRouter.delete("/delete", function (req, res, next) {
         }
         bcrypt.compare(req.query.password, userFromDatabase.password, function(err, result) {
             if (result) {
-                Element.remove({"path" : "./blackbox/" + req.query.userId}, function(err, result) {
+                Element.remove({"path": "./blackbox/" + req.query.userId}, function (err, userDeleted) {
                     User.remove({"_id": req.query.userId}, function (err, user) {
                         if (err) {
                             next(err);
@@ -146,8 +151,7 @@ userRouter.delete("/delete", function (req, res, next) {
                         res.json({"message": "User successfully deleted."});
                     });
                 });
-            }
-            else {
+            } else {
                 next(new Error("Mot de passe invalide."));
             }
         });

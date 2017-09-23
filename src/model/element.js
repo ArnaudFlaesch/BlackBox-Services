@@ -2,15 +2,15 @@
 
 const mongoose = require("mongoose");
 
-const Schema = mongoose.Schema;
 
-const ElementSchema = new Schema({
-    "name": String,
-    "path": String,
-    "owner": String,
-    "deleted": Boolean,
-    "dateOfDeletion": Date,
-    "sharedWithUsers": [String]
-});
-
-module.exports = mongoose.model("Element", ElementSchema, "element");
+module.exports = mongoose.model("Element",
+    new mongoose.Schema({
+        "name": String,
+        "path": String,
+        "displayName": String,
+        "owner": String,
+        "deleted": Boolean,
+        "dateOfDeletion": Date,
+        "sharedWithUsers": [String]
+    }),
+    "element");

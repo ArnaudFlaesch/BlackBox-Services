@@ -3,19 +3,19 @@ const gulp = require("gulp"),
     jshint = require("gulp-jshint"),
     nodemon = require("gulp-nodemon"),
     refresh = require("gulp-refresh"),
-    runSequence = require("run-sequence");;
+    runSequence = require("run-sequence");
 
 const sourceDir = "./src";
 const testDir = "./test";
 
 gulp.task("jshint", function () {
-    return gulp.src([sourceDir+"/*.js", sourceDir+"/**/*.js"])
+    return gulp.src([sourceDir + "/*.js", sourceDir + "/**/*.js"])
         .pipe(jshint())
         .pipe(jshint.reporter("default"));
 });
 
 gulp.task("lint", function () {
-    return gulp.src([sourceDir+"/*.js", sourceDir+"/**/*.js"])
+    return gulp.src([sourceDir + "/*.js", sourceDir + "/**/*.js"])
         .pipe(eslint())
         .pipe(eslint.format());
 });
@@ -29,7 +29,7 @@ gulp.task("livereload", function () {
 
 gulp.task("watch", function() {
     refresh.listen();
-    gulp.watch([sourceDir+"/*.js", sourceDir+"/**/*.js"], ["jshint", "lint"]).on('change', refresh.changed);
+    gulp.watch([sourceDir + "/*.js", sourceDir + "/**/*.js"], ["jshint", "lint"]).on("change", refresh.changed);
 });
 
 gulp.task("dev", function() {

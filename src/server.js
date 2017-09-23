@@ -5,16 +5,16 @@ const app = require("express")(),
     cors = require("cors"),
     exec = require("child_process").exec,
     express = require("express"),
+    elementRouter = require("./routes/elementRouter"),
+    log = require("winston"),
     methodOverride = require("method-override"),
     mongoose = require("mongoose"),
+    port = process.env.PORT || 3000,
     router = express.Router(),
     server = require("http").Server(app),
-    elementRouter = require("./routes/elementRouter"),
     userRouter = require("./routes/userRouter");
 
-const port = process.env.PORT || 3000;
-
-mongoose.connect("mongodb://localhost/blackbox");
+mongoose.connect("mongodb://localhost/blackbox", { "useMongoClient": true });
 
 app.use(bodyParser.urlencoded({"extended": true}));
 app.use(bodyParser.json());
@@ -34,7 +34,7 @@ app.use("/user", userRouter);
 app.use("/element", elementRouter);
 
 app.use(function (req, res, next) {
-    var err = new Error("Not Found");
+    let err = new Error("Not Found");
     err.status = 404;
     next(err);
 });
@@ -45,7 +45,7 @@ app.use(function (err, req, res, next) {
 
 server.listen(port, function () {
     exec("shx mkdir " + "./blackbox", null);
-    console.log("Starting server on port " + port);
+    log.info("Starting server on port " + port);
 });
 
 module.exports = server;

@@ -90,7 +90,7 @@ describe("User tests", function () {
             .expect(200)
             .end(function(err, res) {
                 request(server)
-                    .delete("/user/delete?userId="+res.body[1]._id + "&password=root")
+                    .delete("/user/delete?userId=" + res.body[1]._id + "&password=root")
                     .expect(200)
                     .end(function(err, res) {
                         assert.equal(res.body.message, "User successfully deleted.");
