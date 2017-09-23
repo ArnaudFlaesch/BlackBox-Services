@@ -7,7 +7,6 @@ const bcrypt = require("bcrypt"),
     log = require("winston"),
     PaypalModule = require("paypal-express-checkout"),
     properties = require("properties-reader"),
-    propertiesFile = properties("./src/properties/paypalConfig.ini"),
     User = require("../model/user"),
     userRouter = express.Router();
 
@@ -125,7 +124,8 @@ userRouter.post("/updateUserPassword", function (req, res, next) {
 });
 
 userRouter.get("/premium", function (req, res, next) {
-    const paypal = PaypalModule.init(propertiesFile.get("main.paypal.username"), propertiesFile.get("main.paypal.password"), propertiesFile.get("main.paypal.signature"), "http://localhost:4200/home", "http://localhost:4200/home", true);
+    const propertiesFile = properties("./src/properties/paypalConfig.ini"),
+        paypal = PaypalModule.init(propertiesFile.get("main.paypal.username"), propertiesFile.get("main.paypal.password"), propertiesFile.get("main.paypal.signature"), "http://localhost:4200/home", "http://localhost:4200/home", true);
     paypal.pay("20130001", 0.01, "Abonnement Premium Blackbox", "EUR", true, function (err, url) {
         if (err) {
             next(err);
