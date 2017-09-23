@@ -5,7 +5,9 @@ const bcrypt = require("bcrypt"),
     exec = require("child_process").exec,
     express = require("express"),
     log = require("winston"),
-    propertiesReader = require('properties-reader'),
+    PaypalModule = require("paypal-express-checkout"),
+    properties = require("properties-reader"),
+    propertiesFile = properties("./src/properties/paypalConfig.ini"),
     User = require("../model/user"),
     userRouter = express.Router();
 
@@ -32,7 +34,7 @@ userRouter.get("/info/:userid", function (req, res, next) {
 });
 
 userRouter.post("/login", function (req, res, next) {
-    User.findOne({ "email": req.body.email}, function (err, user) {
+    User.findOne({"email": req.body.email}, function (err, user) {
         if (err) {
             next(err);
         } else {
@@ -52,34 +54,33 @@ userRouter.post("/login", function (req, res, next) {
 });
 
 userRouter.post("/register", function (req, res, next) {
-    User.find({"email": req.body.email},
-        function (err, user){
-            if (err) {
-                next(err);
-            } else {
-                if (user.length === 0) {
-                   bcrypt.hash(req.body.password, 10, function(err, hash) {
-                        req.body.password = hash;
-                        User.create(req.body, function (err, user) {
-                            if (err) {
-                                next(err);
-                            } else {
-                                exec("shx mkdir " + "./blackbox" + "/" + user._id, function (error, stdout, stderr) {
-                                    if (error !== null) {
-                                        log.error("exec error: " + error);
-                                    } else {
-                                        Element.create({"path": "./blackbox", "name": user._id, "owner": user._id, "deleted": false });
-                                        res.send(user);
-                                    }
-                                });
-                            }
-                        });
+    User.find({"email": req.body.email}, function (err, user){
+        if (err) {
+            next(err);
+        } else {
+            if (user.length === 0) {
+               bcrypt.hash(req.body.password, 10, function(err, hash) {
+                    req.body.password = hash;
+                    User.create(req.body, function (err, user) {
+                        if (err) {
+                            next(err);
+                        } else {
+                            exec("shx mkdir " + "./blackbox" + "/" + user._id, function (error, stdout, stderr) {
+                                if (error !== null) {
+                                    next(error);
+                                } else {
+                                    Element.create({"path": "./blackbox", "name": user._id, "owner": user._id, "deleted": false });
+                                    res.send(user);
+                                }
+                            });
+                        }
                     });
-                } else {
-                    next(new Error("L'email est déjà utilisé."));
-                }
+                });
+            } else {
+                next(new Error("L'email est déjà utilisé."));
             }
-        });
+        }
+    });
 });
 
 userRouter.post("/update", function (req, res, next) {
@@ -124,9 +125,7 @@ userRouter.post("/updateUserPassword", function (req, res, next) {
 });
 
 userRouter.get("/premium", function (req, res, next) {
-    const PaypalModule = require("paypal-express-checkout"),
-        properties = propertiesReader("./src/properties/paypalConfig.ini"),
-        paypal = PaypalModule.init(properties.get("main.paypal.username"), properties.get("main.paypal.password"), properties.get("main.paypal.signature"), "http://localhost:4200/home", "http://localhost:4200/home", true);
+    const paypal = PaypalModule.init(propertiesFile.get("main.paypal.username"), propertiesFile.get("main.paypal.password"), propertiesFile.get("main.paypal.signature"), "http://localhost:4200/home", "http://localhost:4200/home", true);
     paypal.pay("20130001", 0.01, "Abonnement Premium Blackbox", "EUR", true, function (err, url) {
         if (err) {
             next(err);
@@ -142,12 +141,12 @@ userRouter.delete("/delete", function (req, res, next) {
         }
         bcrypt.compare(req.query.password, userFromDatabase.password, function(err, result) {
             if (result) {
-                Element.remove({"path": "./blackbox/" + req.query.userId}, function (err, userDeleted) {
+                Element.remove({"owner": req.query.userId}, function (err, userDeleted) {
                     User.remove({"_id": req.query.userId}, function (err, user) {
                         if (err) {
                             next(err);
                         }
-                        exec("shx rmdir -rf " + "./blackbox/" + req.query.userId, null);
+                        exec("shx rm -rf ./blackbox/" + req.query.userId, null);
                         res.json({"message": "User successfully deleted."});
                     });
                 });

@@ -4,6 +4,7 @@ const Element = require("../model/element"),
     exec = require("child_process").exec,
     express = require("express"),
     elementRouter = express.Router(),
+    fs = require("fs"),
     getSize = require("get-folder-size"),
     log = require("winston"),
     multer = require("multer"),
@@ -26,11 +27,16 @@ elementRouter.post("/newFile", function (req, res, next) {
             if (element !== null) {
                 if (path === "./blackbox" || (element.owner === userId || element.sharedWithUsers.indexOf(userId)) > -1) {
                     path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
-                    exec("shx touch " + path + "/" + elementName, function (error, stdout, stderr) {
-                        if (error !== null) {
-                            next(error);
+                    fs.open(path + "/" + elementName, "wx", function (err, fd) {
+                        if (err) {
+                            next(new Error("Un fichier du même nom existe déjà !"));
                         } else {
-                            Element.create({ "path": path, "name": elementName, "owner": userId, "deleted": false });
+                            Element.create({"path": path, "name": elementName, "owner": userId, "deleted": false});
+                            fs.close(fd, function (err) {
+                                if (err) {
+                                    next(err);
+                                }
+                            });
                         }
                     });
                 }
@@ -50,7 +56,7 @@ elementRouter.post("/newFolder", function (req, res, next) {
                     path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
                     exec("shx mkdir " + path + "/" + elementName, function (error, stdout, stderr) {
                         if (error !== null) {
-                            next(error);
+                            next(new Error("Un dossier du même nom existe déjà !"));
                         } else {
                             let elementToCreate = {"path": path, "name": elementName, "owner": userId, "deleted": false};
                             Element.create(elementToCreate);
@@ -62,8 +68,7 @@ elementRouter.post("/newFolder", function (req, res, next) {
     });
 });
 
-elementRouter.get("/renameFile", function (req, res, next) {
-
+elementRouter.get("/getUserSpace", function (req, res, next) {
     getSize("./blackbox/59ba45a747ee3218100b7c92", function (err, size) {
         if (err) {
             next(err);
@@ -71,40 +76,6 @@ elementRouter.get("/renameFile", function (req, res, next) {
         log.info(size + " bytes");
         log.info((size / 1024 / 1024).toFixed(2) + " Mb");
     });
-
-    /*
-    exec("shx ls && shx mv blackbox bb", function (error, stdout, stderr) {
-        log.info(error)
-        log.info(stdout)
-        log.info(stderr)
-        if (error !== null) {
-            next(error);
-        }
-        else {
-           // Element.create({path: path, name: elementName, owner: userId, deleted: false});
-        }
-    });*/
-    /*
-    var userId = req.query.userId;
-    var elementName = req.query.elementName;
-    var path = "./blackbox" + req.query.path;
-    Element.findOne( {"path" : path}, function (err, element) {
-        if (!err) {
-            if (element !== null) {
-                if (path === "./blackbox" || (element.owner === userId || element.sharedWithUsers.indexOf(userId)) > -1) {
-                    path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
-                    exec("shx mkdir " + path + "/" +  elementName, function (error, stdout, stderr) {
-                        if (error !== null) {
-                            next(error);
-                        }
-                        else {
-                            Element.create({path: path, name: elementName, owner: userId, deleted: false});
-                        }
-                    });
-                }
-            }
-        }
-    });*/
 });
 
 function getSharedFolders (req, res, next) {
@@ -135,7 +106,7 @@ elementRouter.get("/directory", function (req, res, next) {
                     if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
                         exec("shx ls " + path + "/" + elementName, function (error, stdout, stderr) {
                             if (error !== null) {
-                                next(error);
+                                next(new Error("Impossible d'accéder à ce répertoire !"));
                             }
                             res.send(stdout.split("\n").filter(Boolean));
                         });
@@ -157,12 +128,15 @@ elementRouter.get("/download", function (req, res, next) {
         userId = req.query.userId;
     let path = "./blackbox" + req.query.path;
     Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (err, element) {
-        if (!err) {
+        if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
                     res.sendFile(path + "/" + elementName, {"root": "./" });
                 }
             }
+        }
+        else {
+            next(error)
         }
     });
 });
@@ -179,5 +153,69 @@ elementRouter.post("/upload", function (req, res, next) {
     });
 });
 
+elementRouter.post("/renameElement", function (req, res, next) {
+    const elementName = req.body.elementName,
+        newElementName = req.body.newElementName,
+        userId = req.body.userId;
+    let path = "./blackbox" + req.body.path;
+    Element.find({"path": {"$regex": path + "/" + elementName + '.*' }}, function (err, elements) {
+        if (!err) {
+            if (elements.length > 0) {
+                elements.map(function (element) {
+                    if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+                        //element.path = path + "/" + newElementName + element.path.substr(0, path + "/" + elementName.length) + path;
+                        log.info(element.path);
+                        log.info(path + "/" + elementName);
+                        log.info(path + "/" + newElementName);
+                        log.info("");
+                    }
+                });
+            }
+        }
+    });
+    Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
+        if (!error) {
+            if (element !== null) {
+                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+                    element.name = newElementName;
+                    element.save(function (err) {
+                        if (err) {
+                            next(err);
+                        }
+                        exec("cd " + path + " && shx mv " + elementName + " " + newElementName, null);
+                    });
+                }
+            }
+        } else {
+            next(error);
+        }
+    });
+});
+
+elementRouter.delete("/deleteElement", function (req, res, next) {
+    const elementName = req.query.elementName,
+        userId = req.query.userId;
+    let path = "./blackbox" + req.query.path;
+    Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (err, element) {
+        if (!err) {
+            if (element !== null) {
+                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+                    Element.remove({"$or": [{"name": elementName, "path": path}, {"path": path + "/" + elementName}]}, function (err, elementRemoved) {
+                        if (err) {
+                            next(err);
+                        }
+                        exec("shx rm -rf " + path + "/" + elementName, function (error, stdout, stderr) {
+                            if (error !== null) {
+                                next(error);
+                            } else {
+                                res.json({"message": "Element successfully deleted."});
+                            }
+                        });
+                    });
+                }
+            }
+        }
+    });
+});
 
 module.exports = elementRouter;
