@@ -31,7 +31,7 @@ elementRouter.post("/newFile", function (req, res, next) {
                         if (err) {
                             next(new Error("Un fichier du même nom existe déjà !"));
                         } else {
-                            Element.create({"path": path, "name": elementName, "owner": userId, "deleted": false});
+                            Element.create({"path": path, "name": elementName, "owner": userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers});
                             fs.close(fd, function (err) {
                                 if (err) {
                                     next(err);
@@ -58,7 +58,7 @@ elementRouter.post("/newFolder", function (req, res, next) {
                         if (error !== null) {
                             next(new Error("Un dossier du même nom existe déjà !"));
                         } else {
-                            let elementToCreate = {"path": path, "name": elementName, "owner": userId, "deleted": false};
+                            let elementToCreate = {"path": path, "name": elementName, "owner": userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers};
                             Element.create(elementToCreate);
                         }
                     });
@@ -127,7 +127,7 @@ elementRouter.get("/download", function (req, res, next) {
     const elementName = req.query.elementName,
         userId = req.query.userId;
     let path = "./blackbox" + req.query.path;
-    Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (err, element) {
+    Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
         if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
@@ -146,10 +146,77 @@ elementRouter.post("/upload", function (req, res, next) {
         if (err) {
             next(err);
         }
-        req.files.map(function (file) {
-            Element.create({"path": file.destination, "name": file.filename, "owner": req.query.userId, "deleted": false });
+        let splittedPath = req.query.path.split("/"),
+            elementName = splittedPath[splittedPath.length - 1];
+        splittedPath.pop();
+        let path = "./blackbox" + Array.prototype.join.call(splittedPath, "/");
+
+        Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
+            if (!error) {
+                if (element !== null) {
+                    req.files.map(function (file) {
+                        Element.create({"path": file.destination.replace("//", "/"), "name": file.filename, "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers });
+                    });
+                    res.status(204).end();
+                }
+            } else {
+                next(error)
+            }
         });
-        res.status(204).end();
+    });
+});
+
+elementRouter.get("/listOfSharedUsers", function (req, res, next) {
+    const elementName = req.query.elementName,
+        userId = req.query.userId;
+    let path = "./blackbox" + req.body.path;
+    Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
+        if (!error) {
+            if (element !== null) {
+                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+                    res.send(element.sharedWithUsers);
+                }
+            }
+        } else {
+            next(error);
+        }
+    });
+});
+
+elementRouter.get("/saveSharedUser", function (req, res, next) {
+    const elementName = req.body.elementName,
+        userId = req.body.userId;
+    let path = "./blackbox" + req.body.path;
+    Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
+        if (!error) {
+            if (element !== null) {
+                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+                    if (req.body.sharedUserId) {
+
+                    }
+                    //let sharedUserInfo = element.sharedWithUsers.
+                }
+            }
+        } else {
+            next(error);
+        }
+    });
+});
+
+elementRouter.delete("/deleteSharedUser", function (req, res, next) {
+    const elementName = req.query.elementName,
+        userId = req.query.userId;
+    let path = "./blackbox" + req.query.path;
+    Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
+        if (!error) {
+            if (element !== null) {
+                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+
+                }
+            }
+        } else {
+            next(error);
+        }
     });
 });
 

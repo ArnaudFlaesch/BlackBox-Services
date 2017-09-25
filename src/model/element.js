@@ -2,7 +2,6 @@
 
 const mongoose = require("mongoose");
 
-
 module.exports = mongoose.model("Element",
     new mongoose.Schema({
         "name": String,
@@ -11,6 +10,10 @@ module.exports = mongoose.model("Element",
         "owner": String,
         "deleted": Boolean,
         "dateOfDeletion": Date,
-        "sharedWithUsers": [String]
+        "sharedWithUsers": [{
+            "sharedUserId": String,
+            "canUpload": Boolean,
+            "canDownload": Boolean
+        }]
     }),
     "element");
