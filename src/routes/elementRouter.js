@@ -16,7 +16,8 @@ const Element = require("../model/element"),
             cb(null, file.originalname);
         }
     }),
-    upload = multer({"storage": storage }).array("documents");
+    upload = multer({"storage": storage }).array("documents"),
+    User = require("../model/user");
 
 elementRouter.post("/newFile", function (req, res, next) {
     const elementName = req.body.elementName,
@@ -80,7 +81,7 @@ elementRouter.get("/getUserSpace", function (req, res, next) {
 
 function getSharedFolders (req, res, next) {
     const userId = req.query.userId;
-    Element.find({"$and": [{"$and": [{"$or": [{"owner": userId }, {"sharedWithUsers": userId}]}, {"name": {"$ne": userId}}]}, {"path": "./blackbox"}]}, function (err, folders) {
+    Element.find({"$and": [{"$and": [{"$or": [{"owner": userId }, {"sharedWithUsers.sharedUserId": userId}]}, {"name": {"$ne": userId}}]}, {"path": "./blackbox"}]}, function (err, folders) {
         if (!err) {
             let folderList = [];
             folders.map(function (folder) {
@@ -169,11 +170,12 @@ elementRouter.post("/upload", function (req, res, next) {
 elementRouter.get("/listOfSharedUsers", function (req, res, next) {
     const elementName = req.query.elementName,
         userId = req.query.userId;
-    let path = "./blackbox" + req.body.path;
+    let path = "./blackbox" + req.query.path;
     Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
         if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+
                     res.send(element.sharedWithUsers);
                 }
             }
@@ -183,7 +185,7 @@ elementRouter.get("/listOfSharedUsers", function (req, res, next) {
     });
 });
 
-elementRouter.get("/saveSharedUser", function (req, res, next) {
+elementRouter.post("/saveSharedUser", function (req, res, next) {
     const elementName = req.body.elementName,
         userId = req.body.userId;
     let path = "./blackbox" + req.body.path;
@@ -191,10 +193,30 @@ elementRouter.get("/saveSharedUser", function (req, res, next) {
         if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                    if (req.body.sharedUserId) {
-
+                    if (!req.body.sharedUserId) {
+                        User.findOne({"email": req.body.sharedUserEmail}, function (error, user) {
+                            if (error) {
+                                next(error);
+                            } else if (user) {
+                                element.sharedWithUsers.push({"sharedUserId": user._id, "canDownload": req.body.canDownload, "canUpload": req.body.canUpload});
+                                element.save(function (err) {
+                                    if (err) {
+                                        next(err);
+                                    }
+                                });
+                            }
+                        })
+                    } else if (req.body.sharedUserId) {
+                        let userShared = element.sharedWithUsers.filter(user => user.sharedUserId === req.body.sharedUserId)[0];
+                        userShared.canUpload = req.body.canUpload;
+                        userShared.canDownload = req.body.canDownload;
+                        element.sharedWithUsers.splice(element.sharedWithUsers.indexOf(req.body.sharedUserId), 1);
+                        element.save(function (err) {
+                            if (err) {
+                                next(err);
+                            }
+                        });
                     }
-                    //let sharedUserInfo = element.sharedWithUsers.
                 }
             }
         } else {
