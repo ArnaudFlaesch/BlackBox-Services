@@ -23,11 +23,11 @@ elementRouter.post("/newFile", function (req, res, next) {
     const elementName = req.body.elementName,
         userId = req.body.userId;
     let path = "./blackbox" + req.body.path;
-    Element.findOne({"path": path}, function (err, element) {
+    Element.findOne({"$and": [{"path": path}, {"name": req.body.folderTo}]}, function (err, element) {
         if (!err) {
             if (element !== null) {
+                path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
                 if (path === "./blackbox" || (element.owner === userId || element.sharedWithUsers.indexOf(userId)) > -1) {
-                    path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
                     fs.open(path + "/" + elementName, "wx", function (err, fd) {
                         if (err) {
                             next(new Error("Un fichier du même nom existe déjà !"));
@@ -50,11 +50,11 @@ elementRouter.post("/newFolder", function (req, res, next) {
     const elementName = req.body.elementName,
         userId = req.body.userId;
     let path = "./blackbox" + req.body.path;
-    Element.findOne({"path": path}, function (err, element) {
+    Element.findOne({"$and": [{"path": path}, {"name": req.body.folderTo}]}, function (err, element) {
         if (!err) {
             if (element !== null) {
+                path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
                 if (path === "./blackbox" || (element.owner === userId || element.sharedWithUsers.indexOf(userId)) > -1) {
-                    path = (req.body.folderTo !== "") ? path + "/" + req.body.folderTo : path;
                     exec("shx mkdir " + path + "/" + elementName, function (error, stdout, stderr) {
                         if (error !== null) {
                             next(new Error("Un dossier du même nom existe déjà !"));
@@ -175,8 +175,21 @@ elementRouter.get("/listOfSharedUsers", function (req, res, next) {
         if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-
-                    res.send(element.sharedWithUsers);
+                    let sharedUsers = [];
+                    element.sharedWithUsers.map(function (sharedUserId) {
+                        User.findById(sharedUserId, function (err, user) {
+                            if (err) {
+                                next(err);
+                            } else if (user) {
+                                user.password = null;
+                                sharedUsers.push(user);
+                            }
+                        });
+                    }, function () {
+                        res.send(sharedUsers);
+                    });
+                } else {
+                    next(new Error("Vous n'avez pas les droits d'accès !"));
                 }
             }
         } else {
@@ -198,7 +211,7 @@ elementRouter.post("/saveSharedUser", function (req, res, next) {
                             if (error) {
                                 next(error);
                             } else if (user) {
-                                element.sharedWithUsers.push({"sharedUserId": user._id, "canDownload": req.body.canDownload, "canUpload": req.body.canUpload});
+                                element.sharedWithUsers.push(user._id);
                                 element.save(function (err) {
                                     if (err) {
                                         next(err);
@@ -206,16 +219,6 @@ elementRouter.post("/saveSharedUser", function (req, res, next) {
                                 });
                             }
                         })
-                    } else if (req.body.sharedUserId) {
-                        let userShared = element.sharedWithUsers.filter(user => user.sharedUserId === req.body.sharedUserId)[0];
-                        userShared.canUpload = req.body.canUpload;
-                        userShared.canDownload = req.body.canDownload;
-                        element.sharedWithUsers.splice(element.sharedWithUsers.indexOf(req.body.sharedUserId), 1);
-                        element.save(function (err) {
-                            if (err) {
-                                next(err);
-                            }
-                        });
                     }
                 }
             }
@@ -233,7 +236,15 @@ elementRouter.delete("/deleteSharedUser", function (req, res, next) {
         if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-
+                    element.sharedWithUsers = element.sharedWithUsers.filter(user => user != sharedUserId);
+                    element.save(function (error) {
+                        if (error) {
+                            next(error);
+                        }
+                        else {
+                            res.json("L'accès de l'utilisateur a bien été révoqué.")
+                        }
+                    })
                 }
             }
         } else {

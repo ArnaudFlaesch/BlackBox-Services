@@ -10,10 +10,6 @@ module.exports = mongoose.model("Element",
         "owner": String,
         "deleted": Boolean,
         "dateOfDeletion": Date,
-        "sharedWithUsers": [{
-            "sharedUserId": String,
-            "canUpload": Boolean,
-            "canDownload": Boolean
-        }]
+        "sharedWithUsers": [String]
     }),
     "element");

@@ -9,6 +9,7 @@ const app = require("express")(),
     log = require("winston"),
     methodOverride = require("method-override"),
     mongoose = require("mongoose"),
+    Element = mongoose.model("Element"),
     port = process.env.PORT || 3000,
     router = express.Router(),
     server = require("http").Server(app),
@@ -51,7 +52,11 @@ app.use(function (err, req, res, next) {
 });
 
 server.listen(port, function () {
-    exec("shx mkdir " + "./blackbox", null);
+    exec("shx mkdir " + "./blackbox", function (error, stdout, stderr) {
+        if (!error) {
+            Element.create({"path": "./blackbox", "name": "", "owner": "blackbox", "deleted": false, "sharedWithUsers": []});
+        }
+    });
     log.info("Starting server on port " + port);
 });
 
