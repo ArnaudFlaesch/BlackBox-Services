@@ -8,16 +8,7 @@ const async = require("async"),
     fs = require("fs"),
     getSize = require("get-folder-size"),
     log = require("winston"),
-    multer = require("multer"),
-    storage = multer.diskStorage({
-        "destination": function (req, file, cb) {
-            cb(null, "./blackbox/" + req.query.path);
-        },
-        "filename": function (req, file, cb) {
-            cb(null, file.originalname);
-        }
-    }),
-    upload = multer({"storage": storage }).array("documents"),
+    upload = require("multer")().array("documents"),
     User = require("../model/user");
 
 elementRouter.post("/newFile", function (req, res, next) {
@@ -70,8 +61,10 @@ elementRouter.post("/newFolder", function (req, res, next) {
     });
 });
 
-elementRouter.get("/getUserSpace", function (req, res, next) {
-    getSize("./blackbox/59ba45a747ee3218100b7c92", function (err, size) {
+elementRouter.post("/getUserSpace", function (req, res, next) {
+    // get all users folders proprio + shared owner
+    getSize("./blackbox/" + userId, function (err, size) {
+        let personalDriveSize, sharedDriveSize;
         if (err) {
             next(err);
         }
@@ -119,6 +112,43 @@ elementRouter.get("/directory", function (req, res, next) {
             }
         });
     }
+});
+
+elementRouter.post("/moveElement", function (req, res, next) {
+    const userId = req.body.userId,
+        elementName = req.body.elementName,
+        originFolder = req.body.originFolder,
+        destinationFolder = req.body.destinationFolder;
+    let destinationPath = req.body.destinationPath,
+        originPath = req.body.originPath;
+
+    if (originPath === "") { originPath = "/"};
+    if (destinationPath === "") { destinationPath = "/"};
+
+    originPath = "./blackbox" + originPath + "/" + originFolder;
+    let path = "./blackbox" + destinationPath;
+
+    Element.findOne({"$and": [{"name": destinationFolder}, {"path": path}]}, function (err, element) {
+        if (!err) {
+            if (element !== null) {
+                if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
+                    if (req.body.moveOrCopy) {
+                        fs.copyFile(originPath + "/" + elementName, path + "/" + elementName, function(err) {
+                            if (err) {
+                                next(err);
+                            }
+                        });
+                    } else {
+                        fs.rename(originPath + "/" + elementName, path + "/" + elementName, function (err) {
+                            next(err);
+                        });
+                    }
+                }
+            }
+        } else {
+            next(err);
+        }
+    });
 });
 
 elementRouter.get("/sharedFolders", function (req, res, next) {
