@@ -1,6 +1,7 @@
 "use strict";
 
-const Element = require("../model/element"),
+const async = require("async"),
+    Element = require("../model/element"),
     exec = require("child_process").exec,
     express = require("express"),
     elementRouter = express.Router(),
@@ -81,7 +82,7 @@ elementRouter.get("/getUserSpace", function (req, res, next) {
 
 function getSharedFolders (req, res, next) {
     const userId = req.query.userId;
-    Element.find({"$and": [{"$and": [{"$or": [{"owner": userId }, {"sharedWithUsers.sharedUserId": userId}]}, {"name": {"$ne": userId}}]}, {"path": "./blackbox"}]}, function (err, folders) {
+    Element.find({"$and": [{"$and": [{"$or": [{"owner": userId }, {"sharedWithUsers": userId}]}, {"name": {"$ne": userId}}]}, {"path": "./blackbox"}]}, function (err, folders) {
         if (!err) {
             let folderList = [];
             folders.map(function (folder) {
@@ -176,18 +177,22 @@ elementRouter.get("/listOfSharedUsers", function (req, res, next) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
                     let sharedUsers = [];
-                    element.sharedWithUsers.map(function (sharedUserId) {
-                        User.findById(sharedUserId, function (err, user) {
-                            if (err) {
-                                next(err);
-                            } else if (user) {
-                                user.password = null;
-                                sharedUsers.push(user);
-                            }
-                        });
-                    }, function () {
-                        res.send(sharedUsers);
-                    });
+                    async.each(element.sharedWithUsers,
+                        function(userId, done) {
+                            User.findById(userId, function (err, user) {
+                                if (err) {
+                                    next(err);
+                                } else if (user) {
+                                    user.password = null;
+                                    sharedUsers.push(user);
+                                    done();
+                                }
+                            });
+                        },
+                        function (err){
+                            res.send(sharedUsers);
+                        }
+                    );
                 } else {
                     next(new Error("Vous n'avez pas les droits d'accès !"));
                 }
@@ -206,11 +211,13 @@ elementRouter.post("/saveSharedUser", function (req, res, next) {
         if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                    if (!req.body.sharedUserId) {
-                        User.findOne({"email": req.body.sharedUserEmail}, function (error, user) {
-                            if (error) {
-                                next(error);
-                            } else if (user) {
+                    User.findOne({"email": req.body.sharedUserEmail}, function (error, user) {
+                        if (error) {
+                            next(error);
+                        } else if (user) {
+                            if (element.sharedWithUsers.indexOf(user._id) > -1 || user._id === userId || user._id == element.owner) {
+                                next(new Error("L'utilisateur dispose déjà des droits d'accès."));
+                            } else {
                                 element.sharedWithUsers.push(user._id);
                                 element.save(function (err) {
                                     if (err) {
@@ -218,8 +225,10 @@ elementRouter.post("/saveSharedUser", function (req, res, next) {
                                     }
                                 });
                             }
-                        })
-                    }
+                        } else {
+                            next(new Error("Aucun utilisateur n'existe avec cet email."));
+                        }
+                    });
                 }
             }
         } else {
@@ -236,13 +245,13 @@ elementRouter.delete("/deleteSharedUser", function (req, res, next) {
         if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                    element.sharedWithUsers = element.sharedWithUsers.filter(user => user != sharedUserId);
+                    element.sharedWithUsers = element.sharedWithUsers.filter(user => user != req.query.sharedUserId);
                     element.save(function (error) {
                         if (error) {
                             next(error);
                         }
                         else {
-                            res.json("L'accès de l'utilisateur a bien été révoqué.")
+                            res.json({"message": "L'accès de l'utilisateur a bien été révoqué."});
                         }
                     })
                 }
