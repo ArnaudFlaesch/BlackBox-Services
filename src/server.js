@@ -22,6 +22,10 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(methodOverride());
 
+app.use("/", router);
+app.use("/user", userRouter);
+app.use("/element", elementRouter);
+
 app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
@@ -35,10 +39,6 @@ app.use(function(req, res, next) {
     }
 });
 
-app.use(function (err, req, res, next) {
-    res.status(500).json({"error": err.message});
-});
-
 router.get("/", function (req, res) {
     res.json({"message": "Welcome to BlackBox's Services !"});
 });
@@ -47,9 +47,9 @@ router.use(function (req, res, next) {
     next();
 });
 
-app.use("/", router);
-app.use("/user", userRouter);
-app.use("/element", elementRouter);
+app.use(function (err, req, res, next) {
+    res.status(500).json({"error": err.message});
+});
 
 server.listen(port, function () {
     exec("shx mkdir " + "./blackbox", function (error, stdout, stderr) {
