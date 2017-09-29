@@ -1,8 +1,8 @@
 "use strict";
 
-const algorithm = 'aes-256-ctr',
+const algorithm = "aes-256-ctr",
     async = require("async"),
-    crypto = require('crypto'),
+    crypto = require("crypto"),
     Element = require("../model/element"),
     exec = require("child_process").exec,
     express = require("express"),
@@ -36,7 +36,7 @@ elementRouter.post("/newFile", function (req, res, next) {
                         if (err) {
                             next(new Error("Un fichier du même nom existe déjà !"));
                         } else {
-                            Element.create({"path": path, "name": elementName, "owner": userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers});
+                            Element.create({"path": path, "name": elementName, "owner": userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers, "isFolder": false});
                             fs.close(fd, function (err) {
                                 if (err) {
                                     next(err);
@@ -63,7 +63,7 @@ elementRouter.post("/newFolder", function (req, res, next) {
                         if (error !== null) {
                             next(new Error("Un dossier du même nom existe déjà !"));
                         } else {
-                            let elementToCreate = {"path": path, "name": elementName, "owner": userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers};
+                            let elementToCreate = {"path": path, "name": elementName, "owner": userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers, "isFolder": true};
                             Element.create(elementToCreate);
                         }
                     });
@@ -111,11 +111,11 @@ elementRouter.get("/directory", function (req, res, next) {
             if (!err) {
                 if (element !== null) {
                     if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                        exec("shx ls " + path + "/" + elementName, function (error, stdout, stderr) {
-                            if (error !== null) {
+                        Element.find({"path": path + "/" + elementName}, function (err, elements) {
+                            if (err) {
                                 next(new Error("Impossible d'accéder à ce répertoire !"));
                             }
-                            res.send(stdout.split("\n").filter(Boolean));
+                            res.send(elements);
                         });
                     }
                 }
@@ -211,7 +211,7 @@ elementRouter.post("/upload", function (req, res, next) {
                         fs.unlink(filePath, function(err) {
                             Element.findOne({"path": destination, "name": file.filename.substring(0, file.filename.length - 4)}, function (getFileError, fileFromDB) {
                                 if (!fileFromDB) {
-                                    Element.create({"path": destination, "name": file.filename.substring(0, file.filename.length - 4), "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers });
+                                    Element.create({"path": destination, "name": file.filename.substring(0, file.filename.length - 4), "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers, "isFolder": false });
                                 }
                             });
                         });
@@ -308,7 +308,22 @@ elementRouter.delete("/deleteSharedUser", function (req, res, next) {
                             next(error);
                         }
                         else {
-                            res.json({"message": "L'accès de l'utilisateur a bien été révoqué."});
+                            Element.find({"path": {"$regex": path + "/" + elementName + ".*" }}, function (err, elements) {
+                                if (!err) {
+                                    if (elements.length > 0) {
+                                        async.each(elements(
+                                            function (element, done) {
+                                            element.sharedWithUsers = element.sharedWithUsers.filter(user => user != req.query.sharedUserId);
+                                            element.save();
+                                            done();
+                                        }),
+                                        function() {
+                                            res.json({"message": "L'accès de l'utilisateur a bien été révoqué."});
+                                        });
+                                    }
+                                }
+                            });
+
                         }
                     })
                 }
@@ -324,7 +339,7 @@ elementRouter.post("/renameElement", function (req, res, next) {
         newElementName = req.body.newElementName,
         userId = req.body.userId;
     let path = "./blackbox" + req.body.path;
-    Element.find({"path": {"$regex": path + "/" + elementName + '.*' }}, function (err, elements) {
+    Element.find({"path": {"$regex": path + "/" + elementName + ".*" }}, function (err, elements) {
         if (!err) {
             if (elements.length > 0) {
                 elements.map(function (element) {

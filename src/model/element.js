@@ -6,10 +6,10 @@ module.exports = mongoose.model("Element",
     new mongoose.Schema({
         "name": String,
         "path": String,
-        "displayName": String,
         "owner": String,
         "deleted": Boolean,
         "dateOfDeletion": Date,
-        "sharedWithUsers": [String]
+        "sharedWithUsers": [String],
+        "isFolder": Boolean
     }),
     "element");

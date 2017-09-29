@@ -9,6 +9,7 @@ module.exports = mongoose.model("User",
         "firstname": String,
         "name": String,
         "isPremiumUser": Boolean,
-        "premiumDateOfExpiration": Date
+        "premiumDateOfExpiration": Date,
+        "storageSpace": Number
     }),
     "user");

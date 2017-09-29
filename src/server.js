@@ -27,11 +27,16 @@ app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Content-Length, X-Requested-With");
     res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+
     if ("OPTIONS" == req.method) {
         res.send(200);
     } else {
         next();
     }
+});
+
+app.use(function (err, req, res, next) {
+    res.status(500).json({"error": err.message});
 });
 
 router.get("/", function (req, res) {
@@ -45,16 +50,6 @@ router.use(function (req, res, next) {
 app.use("/", router);
 app.use("/user", userRouter);
 app.use("/element", elementRouter);
-
-app.use(function (req, res, next) {
-    let err = new Error("Not Found");
-    err.status = 404;
-    next(err);
-});
-
-app.use(function (err, req, res, next) {
-    res.status(500).json({"error": err.message});
-});
 
 server.listen(port, function () {
     exec("shx mkdir " + "./blackbox", function (error, stdout, stderr) {

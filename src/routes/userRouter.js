@@ -58,8 +58,9 @@ userRouter.post("/register", function (req, res, next) {
             next(err);
         } else {
             if (user.length === 0) {
-               bcrypt.hash(req.body.password, 10, function(err, hash) {
+                bcrypt.hash(req.body.password, 10, function(err, hash) {
                     req.body.password = hash;
+                    req.body.storageSpace = 1073741824;
                     User.create(req.body, function (err, user) {
                         if (err) {
                             next(err);
@@ -68,7 +69,7 @@ userRouter.post("/register", function (req, res, next) {
                                 if (error !== null) {
                                     next(error);
                                 } else {
-                                    Element.create({"path": "./blackbox", "name": user._id, "owner": user._id, "deleted": false });
+                                    Element.create({"path": "./blackbox", "name": user._id, "owner": user._id, "deleted": false, "isFolder": true });
                                     res.send(user);
                                 }
                             });
