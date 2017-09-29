@@ -1,6 +1,8 @@
 "use strict";
 
-const async = require("async"),
+const algorithm = 'aes-256-ctr',
+    async = require("async"),
+    crypto = require('crypto'),
     Element = require("../model/element"),
     exec = require("child_process").exec,
     express = require("express"),
@@ -8,7 +10,17 @@ const async = require("async"),
     fs = require("fs"),
     getSize = require("get-folder-size"),
     log = require("winston"),
-    upload = require("multer")().array("documents"),
+    multer = require("multer"),
+    password = "d6F3Efeq",
+    storage = multer.diskStorage({
+        "destination": function (req, file, cb) {
+            cb(null, "./blackbox/" + req.query.path);
+        },
+        "filename": function (req, file, cb) {
+            cb(null, file.originalname + "_old");
+        }
+    }),
+    upload = multer({"storage": storage}).array("documents"),
     User = require("../model/user");
 
 elementRouter.post("/newFile", function (req, res, next) {
@@ -128,25 +140,27 @@ elementRouter.post("/moveElement", function (req, res, next) {
     originPath = "./blackbox" + originPath + "/" + originFolder;
     let path = "./blackbox" + destinationPath;
 
-    Element.findOne({"$and": [{"name": destinationFolder}, {"path": path}]}, function (err, element) {
-        if (!err) {
+    Element.findOne({"$and": [{"name": destinationFolder}, {"path": path}]}, function (error, element) {
+        if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
                     if (req.body.moveOrCopy) {
-                        fs.copyFile(originPath + "/" + elementName, path + "/" + elementName, function(err) {
-                            if (err) {
-                                next(err);
+                        fs.copyFile(originPath + "/" + elementName, path + "/" + elementName, function(copyError) {
+                            if (copyError) {
+                                next(copyError);
                             }
                         });
                     } else {
-                        fs.rename(originPath + "/" + elementName, path + "/" + elementName, function (err) {
-                            next(err);
+                        fs.rename(originPath + "/" + elementName, path + "/" + elementName, function (renameError) {
+                            if (renameError) {
+                                next(renameError);
+                            }
                         });
                     }
                 }
             }
         } else {
-            next(err);
+            next(error);
         }
     });
 });
@@ -157,18 +171,19 @@ elementRouter.get("/sharedFolders", function (req, res, next) {
 
 elementRouter.get("/download", function (req, res, next) {
     const elementName = req.query.elementName,
+        decrypt = crypto.createDecipher(algorithm, password),
         userId = req.query.userId;
     let path = "./blackbox" + req.query.path;
     Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
         if (!error) {
             if (element !== null) {
                 if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                    res.sendFile(path + "/" + elementName, {"root": "./" });
+                    fs.createReadStream(path + "/" + elementName).pipe(decrypt).pipe(res);
                 }
             }
         }
         else {
-            next(error)
+            next(error);
         }
     });
 });
@@ -187,7 +202,19 @@ elementRouter.post("/upload", function (req, res, next) {
             if (!error) {
                 if (element !== null) {
                     req.files.map(function (file) {
-                        Element.create({"path": file.destination.replace("//", "/"), "name": file.filename, "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers });
+                        const destination = file.destination.replace("//", "/"),
+                            filePath = destination + "/" + file.filename,
+                            r = fs.createReadStream(filePath),
+                            encrypt = crypto.createCipher(algorithm, password),
+                            w = fs.createWriteStream(filePath.substring(0, filePath.length - 4));
+                        r.pipe(encrypt).pipe(w);
+                        fs.unlink(filePath, function(err) {
+                            Element.findOne({"path": destination, "name": file.filename.substring(0, file.filename.length - 4)}, function (getFileError, fileFromDB) {
+                                if (!fileFromDB) {
+                                    Element.create({"path": destination, "name": file.filename.substring(0, file.filename.length - 4), "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers });
+                                }
+                            });
+                        });
                     });
                     res.status(204).end();
                 }

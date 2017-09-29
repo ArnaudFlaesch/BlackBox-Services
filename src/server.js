@@ -10,18 +10,9 @@ const app = require("express")(),
     methodOverride = require("method-override"),
     mongoose = require("mongoose"),
     Element = mongoose.model("Element"),
-    multer = require("multer"),
     port = process.env.PORT || 3000,
     router = express.Router(),
     server = require("http").Server(app),
-    storage = multer.diskStorage({
-        "destination": function (req, file, cb) {
-            cb(null, "./blackbox/" + req.query.path);
-        },
-        "filename": function (req, file, cb) {
-            cb(null, file.originalname);
-        }
-    }),
     userRouter = require("./routes/userRouter");
 
 mongoose.connect("mongodb://localhost/blackbox", { "useMongoClient": true });
@@ -30,19 +21,6 @@ app.use(bodyParser.urlencoded({"extended": true}));
 app.use(bodyParser.json());
 app.use(cors());
 app.use(methodOverride());
-app.use(multer({"storage": storage}).array("documents"));
-
-router.get("/", function (req, res) {
-    res.json({"message": "Welcome to BlackBox's Services !"});
-});
-
-router.use(function (req, res, next) {
-    next();
-});
-
-app.use("/", router);
-app.use("/user", userRouter);
-app.use("/element", elementRouter);
 
 app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
@@ -55,6 +33,18 @@ app.use(function(req, res, next) {
         next();
     }
 });
+
+router.get("/", function (req, res) {
+    res.json({"message": "Welcome to BlackBox's Services !"});
+});
+
+router.use(function (req, res, next) {
+    next();
+});
+
+app.use("/", router);
+app.use("/user", userRouter);
+app.use("/element", elementRouter);
 
 app.use(function (req, res, next) {
     let err = new Error("Not Found");
