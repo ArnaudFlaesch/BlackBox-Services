@@ -73,27 +73,11 @@ elementRouter.post("/newFolder", function (req, res, next) {
     });
 });
 
-elementRouter.post("/getUserSpace", function (req, res, next) {
-    // get all users folders proprio + shared owner
-    getSize("./blackbox/" + userId, function (err, size) {
-        let personalDriveSize, sharedDriveSize;
-        if (err) {
-            next(err);
-        }
-        log.info(size + " bytes");
-        log.info((size / 1024 / 1024).toFixed(2) + " Mb");
-    });
-});
-
 function getSharedFolders (req, res, next) {
     const userId = req.query.userId;
     Element.find({"$and": [{"$and": [{"$or": [{"owner": userId }, {"sharedWithUsers": userId}]}, {"name": {"$ne": userId}}]}, {"path": "./blackbox"}]}, function (err, folders) {
         if (!err) {
-            let folderList = [];
-            folders.map(function (folder) {
-                folderList.push(folder.name);
-            });
-            res.json(folderList);
+            res.json(folders);
         } else {
             next(err);
         }
@@ -124,6 +108,22 @@ elementRouter.get("/directory", function (req, res, next) {
             }
         });
     }
+});
+
+elementRouter.get("/searchElements", function (req, res, next) {
+    const elementName = req.query.elementName,
+        userId = req.query.userId;
+    let path = "./blackbox" + req.query.path;
+
+    Element.find({"$and": [{"$and": [{"name": {"$regex": ".*" + elementName + ".*" }}, {"path":  {"$regex": path + ".*" }}]}, {"name" : {"$ne": userId}}]}, function (err, elements) {
+        if (!err) {
+            res.send(elements.filter(function (element) {
+                return (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1);
+            }));
+        } else {
+            next(err);
+        }
+    });
 });
 
 elementRouter.post("/moveElement", function (req, res, next) {
@@ -198,31 +198,70 @@ elementRouter.post("/upload", function (req, res, next) {
         splittedPath.pop();
         let path = "./blackbox" + Array.prototype.join.call(splittedPath, "/");
 
-        Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
-            if (!error) {
-                if (element !== null) {
-                    req.files.map(function (file) {
-                        const destination = file.destination.replace("//", "/"),
-                            filePath = destination + "/" + file.filename,
-                            r = fs.createReadStream(filePath),
-                            encrypt = crypto.createCipher(algorithm, password),
-                            w = fs.createWriteStream(filePath.substring(0, filePath.length - 4));
-                        r.pipe(encrypt).pipe(w);
-                        fs.unlink(filePath, function(err) {
-                            Element.findOne({"path": destination, "name": file.filename.substring(0, file.filename.length - 4)}, function (getFileError, fileFromDB) {
-                                if (!fileFromDB) {
-                                    Element.create({"path": destination, "name": file.filename.substring(0, file.filename.length - 4), "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers, "isFolder": false });
+        User.findById(req.query.userId, function(err, user) {
+            Element.findOne({"$and": [{"name": elementName}, {"path": path}]}, function (error, element) {
+                if (!error) {
+                    if (element !== null) {
+                        req.files.map(function (file) {
+                            const destination = file.destination.replace("//", "/"),
+                                filePath = destination + "/" + file.filename,
+                                r = fs.createReadStream(filePath),
+                                encrypt = crypto.createCipher(algorithm, password),
+                                w = fs.createWriteStream(filePath.substring(0, filePath.length - 4));
+                            getUserSpace(req.query.userId, null, null, function (sizeOfAllFolders) {
+                                if (file.size + sizeOfAllFolders >= user.storageSpace) {
+                                    next(new Error("Vous n'avez plus assez d'espace ! Pensez à souscrire à un compte Premium ou à libérer de la place !"))
+                                } else {
+                                    r.pipe(encrypt).pipe(w);
+                                    fs.unlink(filePath, function(err) {
+                                        Element.findOne({"path": destination, "name": file.filename.substring(0, file.filename.length - 4)}, function (getFileError, fileFromDB) {
+                                            if (!fileFromDB) {
+                                                Element.create({"path": destination, "name": file.filename.substring(0, file.filename.length - 4), "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers, "isFolder": false });
+                                            }
+                                        });
+                                    });
                                 }
                             });
                         });
-                    });
-                    res.status(204).end();
+                    }
+                } else {
+                    next(error)
                 }
-            } else {
-                next(error)
-            }
-        });
+            });
+        })
     });
+});
+
+function getUserSpace (userId, req, res, callback) {
+    Element.find({"$and": [{"owner": userId}, {"path": "./blackbox"}]}, function (getFoldersError, userDirectories) {
+        if (getFoldersError) {
+            next(getFoldersError);
+        }
+        else {
+            let sizeOfAllFolders = 0;
+            async.each(userDirectories,
+                function (directory, done) {
+                    getSize("./blackbox/" + directory.name, function (err, size) {
+                        if (err) {
+                            next(err);
+                        }
+                        sizeOfAllFolders += size;
+                        done();
+                    });
+                },
+                function () {
+                    if (req && res) {
+                        res.json({"message": sizeOfAllFolders});
+                    } else {
+                        callback(sizeOfAllFolders);
+                    }
+                });
+        }
+    });
+}
+
+elementRouter.post("/getUserSpace", function (req, res, next) {
+     getUserSpace(req.body.userId, req, res);
 });
 
 elementRouter.get("/listOfSharedUsers", function (req, res, next) {

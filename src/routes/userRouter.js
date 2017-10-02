@@ -125,12 +125,20 @@ userRouter.post("/updateUserPassword", function (req, res, next) {
 });
 
 userRouter.get("/premium", function (req, res, next) {
+    const userId = req.query.userId;
     const propertiesFile = properties("./src/properties/paypalConfig.ini"),
-        paypal = PaypalModule.init(propertiesFile.get("main.paypal.username"), propertiesFile.get("main.paypal.password"), propertiesFile.get("main.paypal.signature"), "http://localhost:4200/home", "http://localhost:4200/home", true);
+        paypal = PaypalModule.init(propertiesFile.get("main.paypal.username"), propertiesFile.get("main.paypal.password"), propertiesFile.get("main.paypal.signature"), "http://localhost:4200", "http://localhost:4200", true);
     paypal.pay("20130001", 0.01, "Abonnement Premium Blackbox", "EUR", true, function (err, url) {
         if (err) {
             next(err);
         }
+        User.findById(userId, function (err, userFromDB) {
+            let today = new Date();
+            userFromDB.isPremiumUser = true;
+            userFromDB.premiumDateOfExpiration = today.setMonth(today.getMonth() + 1);
+            userFromDB.storageSpace *= 2;
+            userFromDB.save();
+        });
         res.redirect(url);
     });
 });
@@ -157,5 +165,16 @@ userRouter.delete("/delete", function (req, res, next) {
         });
     });
 });
+
+setInterval(function() {
+    User.find({"premiumDateOfExpiration": {"$lte": new Date()}}, function (err, users) {
+        users.map(function (user) {
+            user.premiumDateOfExpiration = null;
+            user.isPremiumUser = false;
+            user.storageSpace /= 2;
+            user.save();
+        });
+    });
+}, 10000);
 
 module.exports = userRouter;
