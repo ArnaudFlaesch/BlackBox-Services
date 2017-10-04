@@ -55,9 +55,7 @@ app.use(function (err, req, res, next) {
 
 server.listen(port, function () {
     exec("shx mkdir " + "./blackbox", function (error, stdout, stderr) {
-        if (!error) {
-            Element.create({"path": "./blackbox", "name": "", "owner": "blackbox", "deleted": false, "sharedWithUsers": []});
-        }
+        Element.create({"path": "./blackbox", "name": "", "owner": "blackbox", "deleted": false, "sharedWithUsers": []});
     });
     log.info("Starting server on port " + port);
 });

@@ -54,6 +54,7 @@ elementRouter.post("/newFolder", function (req, res, next) {
     const elementName = req.body.elementName,
         userId = req.body.userId;
     let path = "./blackbox" + req.body.path;
+    if (req.body.folderTo === undefined) { req.body.folderTo = ""};
     Element.findOne({"$and": [{"path": path}, {"name": req.body.folderTo}]}, function (err, element) {
         if (!err) {
             if (element !== null) {
@@ -88,6 +89,7 @@ elementRouter.get("/directory", function (req, res, next) {
     const elementName = req.query.elementName,
         userId = req.query.userId;
     let path = "./blackbox" + req.query.path;
+
     if (req.query.path === "" && elementName === "") {
         getSharedFolders(req, res, next);
     } else {
@@ -208,15 +210,17 @@ elementRouter.post("/upload", function (req, res, next) {
                                 r = fs.createReadStream(filePath),
                                 encrypt = crypto.createCipher(algorithm, password),
                                 w = fs.createWriteStream(filePath.substring(0, filePath.length - 4));
-                            getUserSpace(req.query.userId, null, null, function (sizeOfAllFolders) {
+                            getUserSpace(req.query.userId, null, null, next, function (sizeOfAllFolders) {
                                 if (file.size + sizeOfAllFolders >= user.storageSpace) {
-                                    next(new Error("Vous n'avez plus assez d'espace ! Pensez à souscrire à un compte Premium ou à libérer de la place !"))
+                                    fs.unlink(filePath, function(err) {
+                                        next(new Error("Vous n'avez plus assez d'espace ! Pensez à souscrire à un compte Premium ou à libérer de la place !"));
+                                    });
                                 } else {
                                     r.pipe(encrypt).pipe(w);
                                     fs.unlink(filePath, function(err) {
                                         Element.findOne({"path": destination, "name": file.filename.substring(0, file.filename.length - 4)}, function (getFileError, fileFromDB) {
                                             if (!fileFromDB) {
-                                                Element.create({"path": destination, "name": file.filename.substring(0, file.filename.length - 4), "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers, "isFolder": false });
+                                                Element.create({"path": destination, "name": file.filename.substring(0, file.filename.length - 4).replace(/\s/g, '.'), "owner": req.query.userId, "deleted": false, "sharedWithUsers": element.sharedWithUsers, "isFolder": false });
                                             }
                                         });
                                     });
@@ -232,7 +236,7 @@ elementRouter.post("/upload", function (req, res, next) {
     });
 });
 
-function getUserSpace (userId, req, res, callback) {
+function getUserSpace (userId, req, res, next, callback) {
     Element.find({"$and": [{"owner": userId}, {"path": "./blackbox"}]}, function (getFoldersError, userDirectories) {
         if (getFoldersError) {
             next(getFoldersError);
@@ -261,7 +265,7 @@ function getUserSpace (userId, req, res, callback) {
 }
 
 elementRouter.post("/getUserSpace", function (req, res, next) {
-     getUserSpace(req.body.userId, req, res);
+     getUserSpace(req.body.userId, req, res, next, null);
 });
 
 elementRouter.get("/listOfSharedUsers", function (req, res, next) {
@@ -383,11 +387,7 @@ elementRouter.post("/renameElement", function (req, res, next) {
             if (elements.length > 0) {
                 elements.map(function (element) {
                     if (element.owner === userId || element.sharedWithUsers.indexOf(userId) > -1) {
-                        //element.path = path + "/" + newElementName + element.path.substr(0, path + "/" + elementName.length) + path;
-                        log.info(element.path);
-                        log.info(path + "/" + elementName);
-                        log.info(path + "/" + newElementName);
-                        log.info("");
+
                     }
                 });
             }
